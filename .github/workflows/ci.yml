@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run tests
+        run: pytest -q
+
+  ui-demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Render terminal demo
+        uses: charmbracelet/vhs-action@v2
+        with:
+          path: demos/ui-demo.tape
+
+      - name: Upload terminal demo artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-demo
+          path: docs/ui-demo.gif

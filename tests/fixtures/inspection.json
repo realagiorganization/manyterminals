@@ -1,0 +1,48 @@
+[
+  {
+    "capture_method": "tmux",
+    "capture_status": "ok",
+    "emulator": "kitty",
+    "ocr_text": null,
+    "pid": 4242,
+    "screenshot_path": null,
+    "tabs": [
+      {
+        "content": "$ tmux ls\nops: 1 windows\n",
+        "pane_id": "%1",
+        "source": "tmux",
+        "title": "ops:0:shell"
+      },
+      {
+        "content": "tail -f /var/log/app.log\n",
+        "pane_id": "%2",
+        "source": "tmux",
+        "title": "ops:1:logs"
+      }
+    ],
+    "title": "Kitty Control",
+    "tmux_session": "ops",
+    "window_id": "0x01000001",
+    "workspace": "0"
+  },
+  {
+    "capture_method": "screenshot+ocr",
+    "capture_status": "ok",
+    "emulator": "ghostty",
+    "ocr_text": "$\n",
+    "pid": 5252,
+    "screenshot_path": "/tmp/ghostty.png",
+    "tabs": [
+      {
+        "content": "$\n",
+        "pane_id": null,
+        "source": "screenshot+ocr",
+        "title": "Ghostty Scratch"
+      }
+    ],
+    "title": "Ghostty Scratch",
+    "tmux_session": null,
+    "window_id": "0x01000002",
+    "workspace": "1"
+  }
+]

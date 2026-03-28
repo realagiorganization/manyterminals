@@ -75,6 +75,24 @@ class TerminalSnapshot:
     def tab_count(self) -> int:
         return max(len(self.tabs), 1 if (self.title or self.window_id) else 0)
 
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> "TerminalSnapshot":
+        tabs = [TabSnapshot(**tab) for tab in payload.get("tabs", [])]
+        known_fields = {
+            "emulator": payload["emulator"],
+            "pid": int(payload["pid"]),
+            "title": payload.get("title"),
+            "window_id": payload.get("window_id"),
+            "workspace": payload.get("workspace"),
+            "tabs": tabs,
+            "capture_method": payload.get("capture_method"),
+            "capture_status": payload.get("capture_status", "unavailable"),
+            "screenshot_path": payload.get("screenshot_path"),
+            "ocr_text": payload.get("ocr_text"),
+            "tmux_session": payload.get("tmux_session"),
+        }
+        return cls(**known_fields)
+
 
 def run(command: list[str], check: bool = False) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, text=True, capture_output=True, check=check)
@@ -390,6 +408,11 @@ def build_snapshots() -> list[TerminalSnapshot]:
     return snapshots
 
 
+def load_snapshot_fixture(path: Path) -> list[TerminalSnapshot]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    return [TerminalSnapshot.from_dict(item) for item in payload]
+
+
 def load_plan(path: Path) -> list[dict[str, str]]:
     if not path.exists():
         return []
@@ -468,7 +491,7 @@ def write_live_assignments(path: Path, assignments: list[str]) -> None:
 
 
 def inspect_command(args: argparse.Namespace) -> int:
-    snapshots = build_snapshots()
+    snapshots = load_snapshot_fixture(Path(args.fixtures)) if args.fixtures else build_snapshots()
     payload = []
     for snapshot in snapshots:
         item = asdict(snapshot)
@@ -511,7 +534,8 @@ def ensure_tmux_command(args: argparse.Namespace) -> int:
     assignments: list[str] = []
     used_windows: set[str] = set()
     for row in rows:
-        create_tmux_session(row)
+        if not args.dry_run:
+            create_tmux_session(row)
         session = row.get("session", "").strip()
         target = row.get("target", "").strip()
         chosen = next(
@@ -526,10 +550,11 @@ def ensure_tmux_command(args: argparse.Namespace) -> int:
         )
         if not session:
             continue
-        if chosen and attach_tmux(chosen.window_id or "", session):
+        if chosen and (args.dry_run or attach_tmux(chosen.window_id or "", session)):
             used_windows.add(chosen.window_id or "")
+            status = "would attach" if args.dry_run else "attached"
             assignments.append(
-                f"{session} -> {chosen.emulator} pid={chosen.pid} window={chosen.window_id} title={chosen.title or '-'}"
+                f"{session} -> {status} {chosen.emulator} pid={chosen.pid} window={chosen.window_id} title={chosen.title or '-'}"
             )
         else:
             assignments.append(f"{session} -> unattached")
@@ -561,6 +586,7 @@ def build_parser() -> argparse.ArgumentParser:
     inspect_parser = subparsers.add_parser("inspect", help="Inspect running terminal windows.")
     inspect_parser.add_argument("--json", action="store_true", help="Print JSON instead of text.")
     inspect_parser.add_argument("--output", help="Write inspection JSON to a file.")
+    inspect_parser.add_argument("--fixtures", help="Load snapshots from a JSON fixture instead of live discovery.")
     inspect_parser.set_defaults(func=inspect_command)
 
     plan_parser = subparsers.add_parser("plan", help="Show tmux assignment plan from Markdown.")
@@ -569,6 +595,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     ensure_parser = subparsers.add_parser("ensure-tmux", help="Create tmux sessions and attach them into empty terminals.")
     ensure_parser.add_argument("--state-file", default="state/tmux-sessions.md", help="Markdown plan file.")
+    ensure_parser.add_argument("--dry-run", action="store_true", help="Do not create sessions or type into terminal windows.")
     ensure_parser.set_defaults(func=ensure_tmux_command)
 
     publish_parser = subparsers.add_parser("publish", help="Create a remote repo with gh and push.")

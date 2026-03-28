@@ -1,0 +1,39 @@
+from __future__ import annotations
+
+import json
+import subprocess
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["python3", "scripts/manyterminals.py", *args],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+
+def test_help_exits_successfully() -> None:
+    result = run_cli("--help")
+    assert result.returncode == 0
+    assert "ensure-tmux" in result.stdout
+
+
+def test_plan_outputs_json() -> None:
+    result = run_cli("plan", "--state-file", "state/tmux-sessions.md")
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload[0]["session"] == "ops"
+
+
+def test_inspect_fixture_json_output() -> None:
+    result = run_cli("inspect", "--json", "--fixtures", "tests/fixtures/inspection.json")
+    assert result.returncode == 0
+    payload = json.loads(result.stdout)
+    assert payload[0]["tab_count"] == 2
+    assert payload[1]["effectively_empty"] is True
