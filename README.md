@@ -1,6 +1,6 @@
 # manyterminals
 
-`manyterminals` is a Codex skill repository for coordinating lots of terminal emulator windows on Linux. It inventories running terminals, tries emulator-specific or OCR-based content capture, keeps tmux assignment intent in Markdown, and can publish the repo with `gh`.
+`manyterminals` is a Codex skill repository for coordinating lots of terminal emulator windows on Linux. It inventories running terminals, tries emulator-specific or OCR-based content capture, can close idle single-tab scratch terminals, keeps tmux assignment intent in Markdown, and can publish the repo with `gh`.
 
 ## Status
 
@@ -17,6 +17,7 @@ The repository includes a recorded terminal-UI run generated from a stable fixtu
 ```bash
 pytest -q
 python3 scripts/manyterminals.py inspect --fixtures tests/fixtures/inspection.json
+python3 scripts/manyterminals.py close-empty --dry-run --fixtures tests/fixtures/inspection.json
 python3 scripts/manyterminals.py ensure-tmux --dry-run --state-file state/tmux-sessions.md
 ```
 

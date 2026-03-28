@@ -107,3 +107,63 @@ def test_ensure_tmux_dry_run_assigns_empty_terminals(monkeypatch, tmp_path, caps
     assert "logs -> would attach alacritty pid=3 window=0x3 title=Alacritty 2" in captured
     updated = state_file.read_text(encoding="utf-8")
     assert "- ops -> would attach ghostty pid=1 window=0x1 title=Ghostty 1" in updated
+
+
+def test_select_close_candidates_skips_tmux_and_busy_snapshots() -> None:
+    snapshots = [
+        manyterminals.TerminalSnapshot(
+            emulator="ghostty",
+            pid=1,
+            title="Ghostty Empty",
+            window_id="0x1",
+            tabs=[manyterminals.TabSnapshot(content="$ ", title="one", source="fixture")],
+            capture_method="fixture",
+            capture_status="ok",
+        ),
+        manyterminals.TerminalSnapshot(
+            emulator="kitty",
+            pid=2,
+            title="Kitty Tmux",
+            window_id="0x2",
+            tabs=[manyterminals.TabSnapshot(content="$ ", title="two", source="fixture")],
+            capture_method="tmux",
+            capture_status="ok",
+            tmux_session="ops",
+        ),
+        manyterminals.TerminalSnapshot(
+            emulator="alacritty",
+            pid=3,
+            title="Alacritty Busy",
+            window_id="0x3",
+            tabs=[manyterminals.TabSnapshot(content="running build", title="three", source="fixture")],
+            capture_method="fixture",
+            capture_status="ok",
+        ),
+        manyterminals.TerminalSnapshot(
+            emulator="wezterm",
+            pid=4,
+            title="WezTerm Unknown",
+            window_id="0x4",
+            tabs=[manyterminals.TabSnapshot(content="", title="four", source="fixture")],
+            capture_method="fixture",
+            capture_status="unavailable",
+        ),
+    ]
+
+    candidates = manyterminals.select_close_candidates(snapshots)
+
+    assert [snapshot.pid for snapshot in candidates] == [1]
+
+
+def test_close_empty_dry_run_uses_fixture(capsys) -> None:
+    args = argparse.Namespace(
+        dry_run=True,
+        fixtures=str(ROOT / "tests" / "fixtures" / "inspection.json"),
+    )
+
+    result = manyterminals.close_empty_command(args)
+    captured = capsys.readouterr()
+
+    assert result == 0
+    assert "would close ghostty pid=5252 window=0x01000002 title=Ghostty Scratch" in captured.out
+    assert captured.err == ""

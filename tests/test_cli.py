@@ -22,6 +22,7 @@ def test_help_exits_successfully() -> None:
     result = run_cli("--help")
     assert result.returncode == 0
     assert "ensure-tmux" in result.stdout
+    assert "close-empty" in result.stdout
 
 
 def test_plan_outputs_json() -> None:
@@ -37,3 +38,9 @@ def test_inspect_fixture_json_output() -> None:
     payload = json.loads(result.stdout)
     assert payload[0]["tab_count"] == 2
     assert payload[1]["effectively_empty"] is True
+
+
+def test_close_empty_dry_run_fixture_output() -> None:
+    result = run_cli("close-empty", "--dry-run", "--fixtures", "tests/fixtures/inspection.json")
+    assert result.returncode == 0
+    assert "would close ghostty pid=5252 window=0x01000002 title=Ghostty Scratch" in result.stdout

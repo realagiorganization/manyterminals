@@ -7,6 +7,7 @@ import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -490,6 +491,31 @@ def write_live_assignments(path: Path, assignments: list[str]) -> None:
     path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
 
+def select_close_candidates(snapshots: list[TerminalSnapshot]) -> list[TerminalSnapshot]:
+    return [
+        snapshot
+        for snapshot in snapshots
+        if snapshot.tab_count <= 1
+        and snapshot.capture_status == "ok"
+        and not snapshot.tmux_session
+        and is_effectively_empty(snapshot.aggregated_text)
+    ]
+
+
+def close_snapshot(snapshot: TerminalSnapshot) -> bool:
+    if snapshot.window_id and which("wmctrl"):
+        if run(["wmctrl", "-ic", snapshot.window_id]).returncode == 0:
+            return True
+    if snapshot.window_id and which("xdotool"):
+        if run(["xdotool", "windowclose", snapshot.window_id]).returncode == 0:
+            return True
+    try:
+        os.kill(snapshot.pid, signal.SIGTERM)
+    except OSError:
+        return False
+    return True
+
+
 def inspect_command(args: argparse.Namespace) -> int:
     snapshots = load_snapshot_fixture(Path(args.fixtures)) if args.fixtures else build_snapshots()
     payload = []
@@ -564,6 +590,30 @@ def ensure_tmux_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def close_empty_command(args: argparse.Namespace) -> int:
+    snapshots = load_snapshot_fixture(Path(args.fixtures)) if args.fixtures else build_snapshots()
+    candidates = select_close_candidates(snapshots)
+    if not candidates:
+        print("No empty single-tab terminals eligible for closing.")
+        return 0
+    failures = 0
+    for snapshot in candidates:
+        status = "would close" if args.dry_run else "closed"
+        if args.dry_run or close_snapshot(snapshot):
+            print(
+                f"{status} {snapshot.emulator} pid={snapshot.pid} "
+                f"window={snapshot.window_id or '-'} title={snapshot.title or '-'}"
+            )
+            continue
+        failures += 1
+        print(
+            f"failed to close {snapshot.emulator} pid={snapshot.pid} "
+            f"window={snapshot.window_id or '-'} title={snapshot.title or '-'}",
+            file=sys.stderr,
+        )
+    return 1 if failures else 0
+
+
 def publish_command(args: argparse.Namespace) -> int:
     if not which("gh"):
         print("gh is not installed.", file=sys.stderr)
@@ -597,6 +647,14 @@ def build_parser() -> argparse.ArgumentParser:
     ensure_parser.add_argument("--state-file", default="state/tmux-sessions.md", help="Markdown plan file.")
     ensure_parser.add_argument("--dry-run", action="store_true", help="Do not create sessions or type into terminal windows.")
     ensure_parser.set_defaults(func=ensure_tmux_command)
+
+    close_parser = subparsers.add_parser(
+        "close-empty",
+        help="Close single-tab terminals that were captured as empty and are not tmux-backed.",
+    )
+    close_parser.add_argument("--dry-run", action="store_true", help="Print the terminals that would be closed.")
+    close_parser.add_argument("--fixtures", help="Load snapshots from a JSON fixture instead of live discovery.")
+    close_parser.set_defaults(func=close_empty_command)
 
     publish_parser = subparsers.add_parser("publish", help="Create a remote repo with gh and push.")
     publish_parser.add_argument("--org", help="GitHub organization that will own the repository.")

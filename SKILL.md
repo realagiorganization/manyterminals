@@ -1,6 +1,6 @@
 ---
 name: manyterminals
-description: Inspect currently running Linux terminal emulators, try emulator-specific dumps or screenshot-plus-OCR fallbacks to recover visible session contents including tabs when possible, then attach empty single-tab terminals to tmux sessions tracked in a Markdown file. Use when Codex needs to coordinate many terminal windows, harvest their visible state, keep tmux layout associations, or publish the skill repository with gh.
+description: Inspect currently running Linux terminal emulators, try emulator-specific dumps or screenshot-plus-OCR fallbacks to recover visible session contents including tabs when possible, then either close empty single-tab windows or attach them to tmux sessions tracked in a Markdown file. Use when Codex needs to coordinate many terminal windows, harvest their visible state, clean up idle scratch terminals, keep tmux layout associations, or publish the skill repository with gh.
 ---
 
 # Many Terminals
@@ -39,6 +39,18 @@ Create detached tmux sessions from the Markdown plan and attach them into empty 
 python3 scripts/manyterminals.py ensure-tmux --state-file state/tmux-sessions.md
 ```
 
+Preview which empty single-tab terminals would be closed:
+
+```bash
+python3 scripts/manyterminals.py close-empty --dry-run
+```
+
+Close empty single-tab terminals that are not tmux-backed:
+
+```bash
+python3 scripts/manyterminals.py close-empty
+```
+
 Create an org-owned GitHub repository with `gh`, set `origin`, and push the current branch:
 
 ```bash
@@ -52,7 +64,8 @@ python3 scripts/manyterminals.py publish --org YOUR_ORG --repo manyterminals --p
 3. Treat tab discovery as opportunistic. Some emulators expose panes or tabs; others only provide a single window snapshot.
 4. Keep tmux intent in [state/tmux-sessions.md](state/tmux-sessions.md). The helper reads the Markdown table and appends live assignment notes back into the same file.
 5. Use `ensure-tmux` only when the target terminals should be empty. The helper only injects commands into windows that look empty after capture.
-6. Use `publish` after local verification. It shells out to `gh`, so GitHub auth and org permissions must already exist.
+6. Use `close-empty` when the goal is cleanup rather than tmux reuse. It only targets single-tab terminals with `capture_status=ok`, prompt-only content, and no detected tmux session.
+7. Use `publish` after local verification. It shells out to `gh`, so GitHub auth and org permissions must already exist.
 
 ## Notes
 

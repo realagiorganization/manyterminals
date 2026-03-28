@@ -1,5 +1,5 @@
 skill:
   name: manyterminals
   display_name: Many Terminals
-  short_description: Inspect running terminals, recover visible content, and manage tmux attachments.
-  default_prompt: Inspect the current terminal emulator windows, summarize what each session is showing, then attach empty single-tab terminals to tmux sessions from the Markdown plan.
+  short_description: Inspect running terminals, recover visible content, close idle scratch windows, and manage tmux attachments.
+  default_prompt: Inspect the current terminal emulator windows, summarize what each session is showing, close empty single-tab terminals that are not tmux-backed, then attach any remaining empty terminals to tmux sessions from the Markdown plan.
