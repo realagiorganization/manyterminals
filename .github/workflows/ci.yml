@@ -33,7 +33,7 @@ jobs:
           sudo apt-get install -y ffmpeg ttyd
           curl -fsSL https://github.com/charmbracelet/vhs/releases/download/v0.11.0/vhs_0.11.0_Linux_x86_64.tar.gz -o /tmp/vhs.tar.gz
           tar -xzf /tmp/vhs.tar.gz -C /tmp
-          sudo install /tmp/vhs /usr/local/bin/vhs
+          sudo install /tmp/vhs_0.11.0_Linux_x86_64/vhs /usr/local/bin/vhs
 
       - name: Render terminal demo
         run: vhs demos/ui-demo.tape
