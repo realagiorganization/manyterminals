@@ -9,4 +9,5 @@ Edit the table to describe the tmux sessions that should be available and, when 
 
 ## Live Assignments
 
-The helper appends or replaces this section with the latest observed terminal-to-tmux associations.
+- ops -> would attach konsole pid=2073 window=850 title=-
+- logs -> unattached
