@@ -20,10 +20,21 @@ jobs:
           python-version: "3.12"
 
       - name: Install test dependencies
-        run: python -m pip install --upgrade pip pytest
+        run: python -m pip install --upgrade pip -r requirements-test.txt
 
       - name: Run tests
         run: pytest -q
+
+  docker-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build isolated test image
+        run: docker build -f docker/test.Dockerfile -t manyterminals:test .
+
+      - name: Run tests in isolated container
+        run: docker run --rm manyterminals:test
 
   ui-demo:
     runs-on: ubuntu-latest

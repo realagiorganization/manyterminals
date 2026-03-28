@@ -9,6 +9,7 @@ You are operating inside `/home/standart/manyterminals`.
 - Keep `install.md`, `readme.md`, and `AGENTS.md` present at the repo root.
 - Run the local verification commands before commit:
   - `pytest -q`
+  - `bash scripts/run-tests-in-docker.sh`
   - `python3 scripts/manyterminals.py inspect --fixtures tests/fixtures/inspection.json`
   - `python3 scripts/manyterminals.py close-empty --dry-run --fixtures tests/fixtures/inspection.json`
   - `python3 scripts/manyterminals.py ensure-tmux --dry-run --state-file state/tmux-sessions.md`

@@ -1,20 +1,14 @@
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import os
 import subprocess
-import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
-MODULE_PATH = ROOT / "scripts" / "manyterminals.py"
-SPEC = importlib.util.spec_from_file_location("manyterminals_tmux", MODULE_PATH)
-assert SPEC and SPEC.loader
-manyterminals = importlib.util.module_from_spec(SPEC)
-sys.modules[SPEC.name] = manyterminals
-SPEC.loader.exec_module(manyterminals)
+from manyterminals import commands as commands_module
+from manyterminals import tmux_ops as tmux_module
+from manyterminals.models import TabSnapshot, TerminalSnapshot
 
 
 def tmux_available() -> bool:
@@ -44,8 +38,8 @@ def test_create_tmux_session_and_capture(monkeypatch, tmp_path) -> None:
     )
 
     try:
-        manyterminals.create_tmux_session(manyterminals.load_plan(state_file)[0])
-        tabs = manyterminals.tmux_capture("integ")
+        tmux_module.create_tmux_session(commands_module.load_plan(state_file)[0])
+        tabs = tmux_module.tmux_capture("integ", commands_module.strip_ansi)
         joined = "\n".join(tab.content or "" for tab in tabs)
         assert tabs
         assert "hello from tmux" in joined
@@ -76,20 +70,20 @@ def test_ensure_tmux_dry_run_uses_private_socket(monkeypatch, tmp_path, capsys) 
     )
 
     snapshots = [
-        manyterminals.TerminalSnapshot(
+        TerminalSnapshot(
             emulator="ghostty",
             pid=10,
             title="Scratch",
             window_id="0x44",
-            tabs=[manyterminals.TabSnapshot(content="$ ", title="one", source="fixture")],
+            tabs=[TabSnapshot(content="$ ", title="one", source="fixture")],
             capture_method="fixture",
             capture_status="ok",
         )
     ]
-    monkeypatch.setattr(manyterminals, "build_snapshots", lambda: snapshots)
+    monkeypatch.setattr(commands_module, "build_snapshots", lambda: snapshots)
 
     try:
-        result = manyterminals.ensure_tmux_command(
+        result = commands_module.ensure_tmux_command(
             argparse.Namespace(state_file=str(state_file), dry_run=True)
         )
         captured = capsys.readouterr()

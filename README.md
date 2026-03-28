@@ -20,7 +20,11 @@ The repository includes a recorded terminal-UI run generated from a stable fixtu
 ## Local Development
 
 ```bash
+python3 -m venv .venv-test
+. .venv-test/bin/activate
+python -m pip install -r requirements-test.txt
 pytest -q
+bash scripts/run-tests-in-docker.sh
 python3 scripts/manyterminals.py inspect --fixtures tests/fixtures/inspection.json
 python3 scripts/manyterminals.py close-empty --dry-run --fixtures tests/fixtures/inspection.json
 python3 scripts/manyterminals.py ensure-tmux --dry-run --state-file state/tmux-sessions.md
@@ -39,11 +43,19 @@ The current capture and control matrix is:
 
 Known remaining limitation: tab enumeration for emulators like `ghostty`, `konsole`, and `qterminal` is still best-effort unless they expose text through tmux, OCR, or a child process tree that can be classified safely.
 
+## Test Coverage
+
+- `tests/test_bdd.py` plus `tests/features/close_empty.feature`: BDD coverage for the Wayland close-empty fallback using the live regression fixture
+- `tests/test_manyterminals.py`: unit coverage for selector, process-tree, and close fallback logic
+- `tests/test_tmux_integration.py`: tmux session integration coverage
+- `docker/test.Dockerfile` plus `scripts/run-tests-in-docker.sh`: fully isolated test runner with its own Python and tmux toolchain
+
 ## GitHub Actions
 
-The CI workflow does two things on every push and pull request:
+The CI workflow does three things on every push and pull request:
 
 - runs the pytest suite
+- builds the isolated test container and runs the suite inside it
 - renders the terminal UI demo from `demos/ui-demo.tape` and uploads the GIF as a workflow artifact
 
 A separate Pages workflow publishes `docs/ui-demo.gif` so the demo can be linked without relying only on the checked-in asset.
