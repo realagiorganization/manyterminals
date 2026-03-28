@@ -64,7 +64,7 @@ python3 scripts/manyterminals.py publish --org YOUR_ORG --repo manyterminals --p
 3. Treat tab discovery as opportunistic. Some emulators expose panes or tabs; others only provide a single window snapshot.
 4. Keep tmux intent in [state/tmux-sessions.md](state/tmux-sessions.md). The helper reads the Markdown table and appends live assignment notes back into the same file.
 5. Use `ensure-tmux` only when the target terminals should be empty. The helper only injects commands into windows that look empty after capture.
-6. Use `close-empty` when the goal is cleanup rather than tmux reuse. It only targets single-tab terminals with `capture_status=ok`, prompt-only content, and no detected tmux session.
+6. Use `close-empty` when the goal is cleanup rather than tmux reuse. It targets single-tab terminals with no detected tmux session, prefers prompt-only captures when screen/text recovery succeeds, and falls back to descendant-process heuristics when Wayland capture metadata is unavailable.
 7. Use `publish` after local verification. It shells out to `gh`, so GitHub auth and org permissions must already exist.
 
 ## Notes

@@ -36,6 +36,9 @@ KNOWN_TERMINALS = {
     "xterm",
 }
 
+SHELL_COMMANDS = {"bash", "fish", "zsh"}
+TERMINAL_HELPERS = {"ghostty", "kitten", "ptyxis-agent", "sh"}
+
 EMPTY_OUTPUT_RE = re.compile(r"^[\s$#>%~]*(?:\[[^\]]+\])?[\s$#>%~]*$")
 ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 
@@ -128,7 +131,20 @@ def iter_terminal_processes() -> list[tuple[int, str]]:
         name = Path(comm).name
         if name in KNOWN_TERMINALS:
             terminals.append((int(pid_str), name))
-    return terminals
+    parents = process_parents()
+    terminal_ids = {pid for pid, _name in terminals}
+    deduped: list[tuple[int, str]] = []
+    for pid, name in terminals:
+        current = parents.get(pid, 1)
+        nested = False
+        while current > 1:
+            if current in terminal_ids:
+                nested = True
+                break
+            current = parents.get(current, 1)
+        if not nested:
+            deduped.append((pid, name))
+    return deduped
 
 
 def process_parents() -> dict[int, int]:
@@ -143,6 +159,18 @@ def process_parents() -> dict[int, int]:
     return mapping
 
 
+def process_commands() -> dict[int, str]:
+    ps = run(["ps", "-eo", "pid=,comm="], check=True)
+    mapping: dict[int, str] = {}
+    for line in ps.stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        pid_str, comm = line.split(maxsplit=1)
+        mapping[int(pid_str)] = Path(comm).name
+    return mapping
+
+
 def is_descendant(pid: int, ancestor: int, parents: dict[int, int]) -> bool:
     current = pid
     seen: set[int] = set()
@@ -152,6 +180,39 @@ def is_descendant(pid: int, ancestor: int, parents: dict[int, int]) -> bool:
         seen.add(current)
         current = parents.get(current, 1)
     return current == ancestor
+
+
+def descendants_by_pid(parents: dict[int, int]) -> dict[int, list[int]]:
+    children: dict[int, list[int]] = {}
+    for pid, ppid in parents.items():
+        children.setdefault(ppid, []).append(pid)
+    return children
+
+
+def descendant_processes(pid: int, children: dict[int, list[int]]) -> list[int]:
+    found: list[int] = []
+    stack = list(children.get(pid, []))
+    while stack:
+        current = stack.pop()
+        found.append(current)
+        stack.extend(children.get(current, []))
+    return found
+
+
+def has_active_descendants(snapshot: TerminalSnapshot, children: dict[int, list[int]], commands: dict[int, str]) -> bool:
+    descendants = descendant_processes(snapshot.pid, children)
+    shell_count = 0
+    for pid in descendants:
+        command = commands.get(pid, "")
+        if not command:
+            continue
+        if command in SHELL_COMMANDS:
+            shell_count += 1
+            continue
+        if command in TERMINAL_HELPERS:
+            continue
+        return True
+    return shell_count > 1
 
 
 def x11_windows() -> dict[int, dict[str, str]]:
@@ -492,17 +553,34 @@ def write_live_assignments(path: Path, assignments: list[str]) -> None:
 
 
 def select_close_candidates(snapshots: list[TerminalSnapshot]) -> list[TerminalSnapshot]:
+    parents = process_parents()
+    children = descendants_by_pid(parents)
+    commands = process_commands()
     return [
         snapshot
         for snapshot in snapshots
         if snapshot.tab_count <= 1
-        and snapshot.capture_status == "ok"
         and not snapshot.tmux_session
-        and is_effectively_empty(snapshot.aggregated_text)
+        and (
+            (
+                snapshot.capture_status == "ok"
+                and is_effectively_empty(snapshot.aggregated_text)
+            )
+            or (
+                snapshot.capture_status == "unavailable"
+                and not has_active_descendants(snapshot, children, commands)
+            )
+        )
     ]
 
 
 def close_snapshot(snapshot: TerminalSnapshot) -> bool:
+    if snapshot.capture_status == "unavailable":
+        try:
+            os.kill(snapshot.pid, signal.SIGTERM)
+        except OSError:
+            return False
+        return True
     if snapshot.window_id and which("wmctrl"):
         if run(["wmctrl", "-ic", snapshot.window_id]).returncode == 0:
             return True

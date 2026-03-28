@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 
@@ -34,6 +35,29 @@ def test_remap_controlled_tabs_maps_child_pid_to_terminal_pid() -> None:
     remapped = manyterminals.remap_controlled_tabs(tabs, terminals, parents)
     assert 100 in remapped
     assert remapped[100][0].title == "demo"
+
+
+def test_iter_terminal_processes_dedupes_nested_terminal_wrappers(monkeypatch) -> None:
+    responses = {
+        ("ps", "-eo", "pid=,comm="): subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout="\n".join(
+                [
+                    "100 ghostty",
+                    "101 ghostty",
+                    "200 alacritty",
+                    "",
+                ]
+            ),
+            stderr="",
+        )
+    }
+
+    monkeypatch.setattr(manyterminals, "run", lambda command, check=False: responses[tuple(command)])
+    monkeypatch.setattr(manyterminals, "process_parents", lambda: {100: 1, 101: 100, 200: 1})
+
+    assert manyterminals.iter_terminal_processes() == [(100, "ghostty"), (200, "alacritty")]
 
 
 def test_inspect_command_uses_fixture_and_writes_output(tmp_path, capsys) -> None:
@@ -146,7 +170,7 @@ def test_select_close_candidates_skips_tmux_and_busy_snapshots() -> None:
             window_id="0x4",
             tabs=[manyterminals.TabSnapshot(content="", title="four", source="fixture")],
             capture_method="fixture",
-            capture_status="unavailable",
+            capture_status="partial",
         ),
     ]
 
@@ -167,3 +191,80 @@ def test_close_empty_dry_run_uses_fixture(capsys) -> None:
     assert result == 0
     assert "would close ghostty pid=5252 window=0x01000002 title=Ghostty Scratch" in captured.out
     assert captured.err == ""
+
+
+def test_select_close_candidates_live_wayland_fixture_uses_process_fallback(monkeypatch) -> None:
+    payload = (ROOT / "tests" / "fixtures" / "live-wayland-unavailable.json").read_text(encoding="utf-8")
+    snapshots = [manyterminals.TerminalSnapshot.from_dict(item) for item in manyterminals.json.loads(payload)]
+
+    parents = {
+        2073: 1,
+        58097: 2073,
+        59155: 58097,
+        348869: 1,
+        348889: 348869,
+        350889: 348869,
+        1062612: 1,
+        1062634: 1062612,
+        1063335: 1,
+        1063341: 1063335,
+        1064370: 1063341,
+        1064376: 1064370,
+        1065212: 1,
+        1065761: 1065212,
+        1066482: 1065212,
+        1067483: 1,
+        1067497: 1067483,
+        1220861: 1067497,
+        1226517: 1,
+        1226534: 1226517,
+        1226759: 1,
+        1226800: 1226759,
+        1227596: 1,
+        1227607: 1227596,
+        1228030: 1227607,
+        1228032: 1228030,
+        1228451: 1,
+        1229379: 1228451,
+        1229389: 1228451,
+        1229300: 1,
+        1229399: 1229300,
+    }
+    commands = {
+        58097: "zsh",
+        59155: "node-MainThread",
+        348889: "zsh",
+        350889: "zsh",
+        1062634: "zsh",
+        1063341: "ghostty",
+        1064370: "sh",
+        1064376: "zsh",
+        1065761: "ptyxis-agent",
+        1066482: "zsh",
+        1067497: "zsh",
+        1220861: "node-MainThread",
+        1226534: "zsh",
+        1226800: "zsh",
+        1227607: "ghostty",
+        1228030: "sh",
+        1228032: "zsh",
+        1229379: "kitten",
+        1229389: "zsh",
+        1229399: "zsh",
+    }
+
+    monkeypatch.setattr(manyterminals, "process_parents", lambda: parents)
+    monkeypatch.setattr(manyterminals, "process_commands", lambda: commands)
+
+    candidates = manyterminals.select_close_candidates(snapshots)
+
+    assert [snapshot.pid for snapshot in candidates] == [
+        1062612,
+        1063335,
+        1065212,
+        1226517,
+        1226759,
+        1227596,
+        1228451,
+        1229300,
+    ]

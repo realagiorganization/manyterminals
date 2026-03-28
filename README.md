@@ -2,6 +2,8 @@
 
 `manyterminals` is a Codex skill repository for coordinating lots of terminal emulator windows on Linux. It inventories running terminals, tries emulator-specific or OCR-based content capture, can close idle single-tab scratch terminals, keeps tmux assignment intent in Markdown, and can publish the repo with `gh`.
 
+When Wayland blocks reliable window capture, `close-empty` falls back to terminal descendant-process inspection so prompt-only launches can still be closed without touching multi-tab or actively running sessions.
+
 ## Status
 
 ![CI](https://github.com/realagiorganization/manyterminals/actions/workflows/ci.yml/badge.svg)
