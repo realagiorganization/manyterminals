@@ -42,7 +42,7 @@ jobs:
         run: vhs demos/ui-demo.tape
 
       - name: Upload terminal demo artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ui-demo
           path: docs/ui-demo.gif
