@@ -7,10 +7,13 @@ When Wayland blocks reliable window capture, `close-empty` falls back to termina
 ## Status
 
 ![CI](https://github.com/realagiorganization/manyterminals/actions/workflows/ci.yml/badge.svg)
+![Pages](https://github.com/realagiorganization/manyterminals/actions/workflows/pages.yml/badge.svg)
 
 ## Terminal Demo
 
-The repository includes a recorded terminal-UI run generated from a stable fixture and re-rendered in GitHub Actions.
+The repository includes a recorded terminal-UI run generated from a stable fixture and re-rendered in GitHub Actions. The latest published copy is hosted on GitHub Pages:
+
+- https://realagiorganization.github.io/manyterminals/ui-demo.gif
 
 ![Terminal UI demo](docs/ui-demo.gif)
 
@@ -23,12 +26,31 @@ python3 scripts/manyterminals.py close-empty --dry-run --fixtures tests/fixtures
 python3 scripts/manyterminals.py ensure-tmux --dry-run --state-file state/tmux-sessions.md
 ```
 
+## Runtime Coverage
+
+The current capture and control matrix is:
+
+- `tmux`: session/window capture through `tmux capture-pane`
+- `kitty`: tab text through `kitty @ ls` and `kitty @ get-text`
+- `wezterm`: pane text through `wezterm cli list` and `wezterm cli get-text`
+- X11 windows: `wmctrl` first, then `xdotool`
+- Wayland or unsupported emulators: screenshot and OCR when available, otherwise descendant-process fallback for `close-empty`
+- KDE-style wrappers such as `qmlkonsole` and `yakuake`: descendant PID search and process-tree fallback
+
+Known remaining limitation: tab enumeration for emulators like `ghostty`, `konsole`, and `qterminal` is still best-effort unless they expose text through tmux, OCR, or a child process tree that can be classified safely.
+
 ## GitHub Actions
 
 The CI workflow does two things on every push and pull request:
 
 - runs the pytest suite
-- renders the terminal UI demo from `demos/ui-demo.tape` and uploads the SVG as a workflow artifact
+- renders the terminal UI demo from `demos/ui-demo.tape` and uploads the GIF as a workflow artifact
+
+A separate Pages workflow publishes `docs/ui-demo.gif` so the demo can be linked without relying only on the checked-in asset.
+
+## Releases
+
+The repository ships under the MIT license and uses lightweight semantic version tags. `v0.1.0` is the first tagged release cut after the green CI/demo pipeline landed.
 
 ## Repo Layout
 

@@ -60,6 +60,28 @@ def test_iter_terminal_processes_dedupes_nested_terminal_wrappers(monkeypatch) -
     assert manyterminals.iter_terminal_processes() == [(100, "ghostty"), (200, "alacritty")]
 
 
+def test_x11_windows_uses_descendant_pid_search(monkeypatch) -> None:
+    monkeypatch.setattr(manyterminals, "which", lambda name: None if name == "wmctrl" else "/usr/bin/xdotool")
+    monkeypatch.setattr(manyterminals, "iter_terminal_processes", lambda: [(100, "ghostty")])
+    monkeypatch.setattr(manyterminals, "process_parents", lambda: {100: 1, 101: 100})
+    monkeypatch.setattr(manyterminals, "process_commands", lambda: {100: "ghostty", 101: "ghostty"})
+
+    def fake_run(command, check=False):
+        key = tuple(command)
+        responses = {
+            ("xdotool", "search", "--pid", "100", "--onlyvisible", ".*"): subprocess.CompletedProcess(command, 1, "", ""),
+            ("xdotool", "search", "--pid", "101", "--onlyvisible", ".*"): subprocess.CompletedProcess(command, 0, "777\n", ""),
+            ("xdotool", "getwindowname", "777"): subprocess.CompletedProcess(command, 0, "Ghostty Child\n", ""),
+        }
+        return responses[key]
+
+    monkeypatch.setattr(manyterminals, "run", fake_run)
+
+    windows = manyterminals.x11_windows()
+
+    assert windows == {100: {"window_id": "777", "workspace": "", "title": "Ghostty Child"}}
+
+
 def test_terminate_process_tree_escalates_to_sigkill(monkeypatch) -> None:
     sent: list[tuple[int, int]] = []
     existing = {10, 11}

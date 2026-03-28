@@ -1,0 +1,95 @@
+name: Pages
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare Pages content
+        run: |
+          mkdir -p _site
+          cp docs/ui-demo.gif _site/ui-demo.gif
+          cat > _site/index.html <<'EOF'
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>manyterminals Demo</title>
+            <style>
+              :root {
+                color-scheme: light;
+                --bg: #f3f0e8;
+                --fg: #1d262f;
+                --accent: #9d3d24;
+              }
+              body {
+                margin: 0;
+                font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+                background: radial-gradient(circle at top, #fff7e8, var(--bg));
+                color: var(--fg);
+              }
+              main {
+                max-width: 960px;
+                margin: 0 auto;
+                padding: 48px 20px 64px;
+              }
+              h1 {
+                margin: 0 0 12px;
+                font-size: clamp(2rem, 5vw, 3.5rem);
+              }
+              p {
+                line-height: 1.5;
+              }
+              img {
+                width: 100%;
+                border: 3px solid var(--fg);
+                box-shadow: 0 20px 40px rgba(29, 38, 47, 0.18);
+                background: white;
+              }
+              a {
+                color: var(--accent);
+              }
+            </style>
+          </head>
+          <body>
+            <main>
+              <h1>manyterminals demo</h1>
+              <p>Recorded from the fixture-driven terminal UI scenario in <code>demos/ui-demo.tape</code>.</p>
+              <p><a href="ui-demo.gif">Open the raw GIF</a></p>
+              <img src="ui-demo.gif" alt="manyterminals terminal demo">
+            </main>
+          </body>
+          </html>
+          EOF
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

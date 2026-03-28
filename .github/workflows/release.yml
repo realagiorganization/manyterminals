@@ -1,0 +1,31 @@
+name: Release
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create release archive
+        run: |
+          mkdir -p dist
+          tar -czf dist/manyterminals-${GITHUB_REF_NAME}.tar.gz \
+            AGENTS.md LICENSE README.md SKILL.md agents demos docs install.md readme.md scripts state tests
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/manyterminals-${{ github.ref_name }}.tar.gz
+          generate_release_notes: true

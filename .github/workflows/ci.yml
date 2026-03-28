@@ -1,5 +1,8 @@
 name: CI
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   push:
     branches:
@@ -43,3 +46,4 @@ jobs:
         with:
           name: ui-demo
           path: docs/ui-demo.gif
+          if-no-files-found: error

@@ -113,6 +113,21 @@ def strip_ansi(text: str) -> str:
     return ANSI_RE.sub("", text).replace("\r", "")
 
 
+def tmux_base_command() -> list[str]:
+    command = ["tmux"]
+    socket_name = os.environ.get("MANYTERMINALS_TMUX_SOCKET")
+    if socket_name:
+        command.extend(["-L", socket_name])
+    socket_path = os.environ.get("MANYTERMINALS_TMUX_SOCKET_PATH")
+    if socket_path:
+        command.extend(["-S", socket_path])
+    return command
+
+
+def run_tmux(args: list[str], check: bool = False) -> subprocess.CompletedProcess[str]:
+    return run(tmux_base_command() + args, check=check)
+
+
 def is_effectively_empty(text: str) -> bool:
     cleaned = strip_ansi(text).strip()
     if not cleaned:
@@ -274,16 +289,25 @@ def x11_windows() -> dict[int, dict[str, str]]:
                 windows[pid] = {"window_id": window_id, "workspace": workspace, "title": title}
     if windows or not which("xdotool"):
         return windows
-    for pid, _emulator in iter_terminal_processes():
-        result = run(["xdotool", "search", "--pid", str(pid), "--onlyvisible", ".*"])
-        if result.returncode != 0:
-            continue
-        window_id = next((line.strip() for line in result.stdout.splitlines() if line.strip()), None)
-        if not window_id:
-            continue
-        title_result = run(["xdotool", "getwindowname", window_id])
-        title = title_result.stdout.strip() if title_result.returncode == 0 else ""
-        windows[pid] = {"window_id": window_id, "workspace": "", "title": title}
+    parents = process_parents()
+    children = descendants_by_pid(parents)
+    commands = process_commands()
+    for pid, emulator in iter_terminal_processes():
+        search_pids = [pid] + descendant_processes(pid, children)
+        for candidate_pid in search_pids:
+            command = commands.get(candidate_pid, "")
+            if candidate_pid != pid and command in SHELL_COMMANDS:
+                continue
+            result = run(["xdotool", "search", "--pid", str(candidate_pid), "--onlyvisible", ".*"])
+            if result.returncode != 0:
+                continue
+            window_id = next((line.strip() for line in result.stdout.splitlines() if line.strip()), None)
+            if not window_id:
+                continue
+            title_result = run(["xdotool", "getwindowname", window_id])
+            title = title_result.stdout.strip() if title_result.returncode == 0 else ""
+            windows[pid] = {"window_id": window_id, "workspace": "", "title": title}
+            break
     return windows
 
 
@@ -302,7 +326,7 @@ def detect_tmux_for_pid(pid: int) -> str | None:
 def tmux_capture(session: str) -> list[TabSnapshot]:
     fmt = "#{session_name}\t#{window_index}\t#{window_name}\t#{pane_id}\t#{pane_active}"
     try:
-        windows = run(["tmux", "list-windows", "-t", session, "-F", fmt], check=True)
+        windows = run_tmux(["list-windows", "-t", session, "-F", fmt], check=True)
     except subprocess.CalledProcessError:
         return []
     tabs: list[TabSnapshot] = []
@@ -312,7 +336,7 @@ def tmux_capture(session: str) -> list[TabSnapshot]:
             continue
         session_name, window_index, window_name, pane_id, _pane_active = parts
         try:
-            capture = run(["tmux", "capture-pane", "-p", "-t", pane_id], check=True)
+            capture = run_tmux(["capture-pane", "-p", "-t", pane_id], check=True)
             content = strip_ansi(capture.stdout)
         except subprocess.CalledProcessError:
             content = None
@@ -331,7 +355,7 @@ def discover_tmux_session_from_env(tmux_env: str | None) -> str | None:
     if not tmux_env:
         return None
     try:
-        display = run(["tmux", "display-message", "-p", "-F", "#{session_name}"], check=True)
+        display = run_tmux(["display-message", "-p", "-F", "#{session_name}"], check=True)
     except subprocess.CalledProcessError:
         return None
     session = display.stdout.strip()
@@ -548,25 +572,25 @@ def create_tmux_session(row: dict[str, str]) -> None:
     session = row.get("session", "").strip()
     if not session:
         return
-    has = run(["tmux", "has-session", "-t", session])
+    has = run_tmux(["has-session", "-t", session])
     if has.returncode != 0:
-        command = ["tmux", "new-session", "-d", "-s", session]
+        command = ["new-session", "-d", "-s", session]
         cwd = row.get("cwd", "").strip()
         if cwd:
             command.extend(["-c", os.path.expanduser(cwd)])
-        run(command, check=True)
+        run_tmux(command, check=True)
     layout = row.get("layout", "").strip()
     if layout:
-        run(["tmux", "select-layout", "-t", session, layout], check=False)
+        run_tmux(["select-layout", "-t", session, layout], check=False)
     startup = row.get("command", "").strip()
     if startup:
-        run(["tmux", "send-keys", "-t", session, startup, "C-m"], check=False)
+        run_tmux(["send-keys", "-t", session, startup, "C-m"], check=False)
 
 
 def attach_tmux(window_id: str, session: str) -> bool:
     if not which("xdotool"):
         return False
-    command = f"tmux new-session -A -s {shlex.quote(session)}"
+    command = " ".join(shlex.quote(part) for part in tmux_base_command() + ["new-session", "-A", "-s", session])
     steps = [
         ["xdotool", "windowactivate", "--sync", window_id],
         ["xdotool", "type", "--delay", "1", command],
