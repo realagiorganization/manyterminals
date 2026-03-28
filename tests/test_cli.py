@@ -44,3 +44,10 @@ def test_close_empty_dry_run_fixture_output() -> None:
     result = run_cli("close-empty", "--dry-run", "--fixtures", "tests/fixtures/inspection.json")
     assert result.returncode == 0
     assert "would close ghostty pid=5252 window=0x01000002 title=Ghostty Scratch" in result.stdout
+
+
+def test_close_empty_dry_run_live_wayland_fixture_finds_qmlkonsole_and_yakuake() -> None:
+    result = run_cli("close-empty", "--dry-run", "--fixtures", "tests/fixtures/live-wayland-unavailable.json")
+    assert result.returncode == 0
+    assert "would close qmlkonsole pid=944645 window=850 title=-" in result.stdout
+    assert "would close yakuake pid=955961 window=850 title=-" in result.stdout

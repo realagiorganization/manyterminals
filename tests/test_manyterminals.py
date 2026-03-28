@@ -60,6 +60,43 @@ def test_iter_terminal_processes_dedupes_nested_terminal_wrappers(monkeypatch) -
     assert manyterminals.iter_terminal_processes() == [(100, "ghostty"), (200, "alacritty")]
 
 
+def test_terminate_process_tree_escalates_to_sigkill(monkeypatch) -> None:
+    sent: list[tuple[int, int]] = []
+    existing = {10, 11}
+    ticks = {"value": 0.0}
+
+    monkeypatch.setattr(manyterminals, "process_parents", lambda: {10: 1, 11: 10})
+
+    def fake_time() -> float:
+        ticks["value"] += 0.25
+        return ticks["value"]
+
+    monkeypatch.setattr(
+        manyterminals,
+        "time",
+        type("FakeTime", (), {"time": staticmethod(fake_time), "sleep": staticmethod(lambda _x: None)}),
+    )
+
+    def fake_pid_exists(pid: int) -> bool:
+        return pid in existing
+
+    def fake_kill(pid: int, sig: int) -> None:
+        sent.append((pid, sig))
+        if sig == manyterminals.signal.SIGKILL:
+            existing.discard(pid)
+
+    monkeypatch.setattr(manyterminals, "pid_exists", fake_pid_exists)
+    monkeypatch.setattr(manyterminals.os, "kill", fake_kill)
+
+    assert manyterminals.terminate_process_tree(10) is True
+    assert sent == [
+        (11, manyterminals.signal.SIGTERM),
+        (10, manyterminals.signal.SIGTERM),
+        (11, manyterminals.signal.SIGKILL),
+        (10, manyterminals.signal.SIGKILL),
+    ]
+
+
 def test_inspect_command_uses_fixture_and_writes_output(tmp_path, capsys) -> None:
     output_path = tmp_path / "inspection.json"
     args = argparse.Namespace(
@@ -204,53 +241,23 @@ def test_select_close_candidates_live_wayland_fixture_uses_process_fallback(monk
         348869: 1,
         348889: 348869,
         350889: 348869,
-        1062612: 1,
-        1062634: 1062612,
-        1063335: 1,
-        1063341: 1063335,
-        1064370: 1063341,
-        1064376: 1064370,
-        1065212: 1,
-        1065761: 1065212,
-        1066482: 1065212,
+        944645: 1,
+        945427: 944645,
+        955961: 1,
+        958316: 955961,
         1067483: 1,
         1067497: 1067483,
         1220861: 1067497,
-        1226517: 1,
-        1226534: 1226517,
-        1226759: 1,
-        1226800: 1226759,
-        1227596: 1,
-        1227607: 1227596,
-        1228030: 1227607,
-        1228032: 1228030,
-        1228451: 1,
-        1229379: 1228451,
-        1229389: 1228451,
-        1229300: 1,
-        1229399: 1229300,
     }
     commands = {
         58097: "zsh",
         59155: "node-MainThread",
         348889: "zsh",
         350889: "zsh",
-        1062634: "zsh",
-        1063341: "ghostty",
-        1064370: "sh",
-        1064376: "zsh",
-        1065761: "ptyxis-agent",
-        1066482: "zsh",
+        945427: "zsh",
+        958316: "zsh",
         1067497: "zsh",
         1220861: "node-MainThread",
-        1226534: "zsh",
-        1226800: "zsh",
-        1227607: "ghostty",
-        1228030: "sh",
-        1228032: "zsh",
-        1229379: "kitten",
-        1229389: "zsh",
-        1229399: "zsh",
     }
 
     monkeypatch.setattr(manyterminals, "process_parents", lambda: parents)
@@ -259,12 +266,6 @@ def test_select_close_candidates_live_wayland_fixture_uses_process_fallback(monk
     candidates = manyterminals.select_close_candidates(snapshots)
 
     assert [snapshot.pid for snapshot in candidates] == [
-        1062612,
-        1063335,
-        1065212,
-        1226517,
-        1226759,
-        1227596,
-        1228451,
-        1229300,
+        944645,
+        955961,
     ]

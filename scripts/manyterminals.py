@@ -11,6 +11,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -27,6 +28,7 @@ KNOWN_TERMINALS = {
     "konsole",
     "mate-terminal",
     "ptyxis",
+    "qmlkonsole",
     "qterminal",
     "rio",
     "terminator",
@@ -34,6 +36,7 @@ KNOWN_TERMINALS = {
     "wezterm",
     "xfce4-terminal",
     "xterm",
+    "yakuake",
 }
 
 SHELL_COMMANDS = {"bash", "fish", "zsh"}
@@ -213,6 +216,41 @@ def has_active_descendants(snapshot: TerminalSnapshot, children: dict[int, list[
             continue
         return True
     return shell_count > 1
+
+
+def pid_exists(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def terminate_process_tree(root_pid: int, grace_seconds: float = 0.4) -> bool:
+    parents = process_parents()
+    children = descendants_by_pid(parents)
+    ordered = [pid for pid in descendant_processes(root_pid, children) if pid_exists(pid)]
+    ordered.reverse()
+    ordered.append(root_pid)
+    for pid in ordered:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            pass
+    deadline = time.time() + grace_seconds
+    while time.time() < deadline:
+        if not any(pid_exists(pid) for pid in ordered):
+            return True
+        time.sleep(0.05)
+    for pid in ordered:
+        if not pid_exists(pid):
+            continue
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            pass
+    time.sleep(0.05)
+    return not any(pid_exists(pid) for pid in ordered)
 
 
 def x11_windows() -> dict[int, dict[str, str]]:
@@ -576,11 +614,7 @@ def select_close_candidates(snapshots: list[TerminalSnapshot]) -> list[TerminalS
 
 def close_snapshot(snapshot: TerminalSnapshot) -> bool:
     if snapshot.capture_status == "unavailable":
-        try:
-            os.kill(snapshot.pid, signal.SIGTERM)
-        except OSError:
-            return False
-        return True
+        return terminate_process_tree(snapshot.pid)
     if snapshot.window_id and which("wmctrl"):
         if run(["wmctrl", "-ic", snapshot.window_id]).returncode == 0:
             return True
@@ -588,10 +622,9 @@ def close_snapshot(snapshot: TerminalSnapshot) -> bool:
         if run(["xdotool", "windowclose", snapshot.window_id]).returncode == 0:
             return True
     try:
-        os.kill(snapshot.pid, signal.SIGTERM)
+        return terminate_process_tree(snapshot.pid)
     except OSError:
         return False
-    return True
 
 
 def inspect_command(args: argparse.Namespace) -> int:

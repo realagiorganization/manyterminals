@@ -50,9 +50,9 @@
     "capture_method": null,
     "capture_status": "unavailable",
     "effectively_empty": true,
-    "emulator": "foot",
+    "emulator": "qmlkonsole",
     "ocr_text": null,
-    "pid": 1062612,
+    "pid": 944645,
     "screenshot_path": null,
     "tab_count": 1,
     "tabs": [
@@ -73,32 +73,9 @@
     "capture_method": null,
     "capture_status": "unavailable",
     "effectively_empty": true,
-    "emulator": "ghostty",
+    "emulator": "yakuake",
     "ocr_text": null,
-    "pid": 1063335,
-    "screenshot_path": null,
-    "tab_count": 1,
-    "tabs": [
-      {
-        "content": null,
-        "pane_id": null,
-        "source": null,
-        "title": ""
-      }
-    ],
-    "title": "",
-    "tmux_session": null,
-    "window_id": "850",
-    "workspace": ""
-  },
-  {
-    "aggregated_text": "",
-    "capture_method": null,
-    "capture_status": "unavailable",
-    "effectively_empty": true,
-    "emulator": "ptyxis",
-    "ocr_text": null,
-    "pid": 1065212,
+    "pid": 955961,
     "screenshot_path": null,
     "tab_count": 1,
     "tabs": [
@@ -122,121 +99,6 @@
     "emulator": "xfce4-terminal",
     "ocr_text": null,
     "pid": 1067483,
-    "screenshot_path": null,
-    "tab_count": 1,
-    "tabs": [
-      {
-        "content": null,
-        "pane_id": null,
-        "source": null,
-        "title": ""
-      }
-    ],
-    "title": "",
-    "tmux_session": null,
-    "window_id": "850",
-    "workspace": ""
-  },
-  {
-    "aggregated_text": "",
-    "capture_method": null,
-    "capture_status": "unavailable",
-    "effectively_empty": true,
-    "emulator": "alacritty",
-    "ocr_text": null,
-    "pid": 1226517,
-    "screenshot_path": null,
-    "tab_count": 1,
-    "tabs": [
-      {
-        "content": null,
-        "pane_id": null,
-        "source": null,
-        "title": ""
-      }
-    ],
-    "title": "",
-    "tmux_session": null,
-    "window_id": "850",
-    "workspace": ""
-  },
-  {
-    "aggregated_text": "",
-    "capture_method": null,
-    "capture_status": "unavailable",
-    "effectively_empty": true,
-    "emulator": "foot",
-    "ocr_text": null,
-    "pid": 1226759,
-    "screenshot_path": null,
-    "tab_count": 1,
-    "tabs": [
-      {
-        "content": null,
-        "pane_id": null,
-        "source": null,
-        "title": ""
-      }
-    ],
-    "title": "",
-    "tmux_session": null,
-    "window_id": "850",
-    "workspace": ""
-  },
-  {
-    "aggregated_text": "",
-    "capture_method": null,
-    "capture_status": "unavailable",
-    "effectively_empty": true,
-    "emulator": "ghostty",
-    "ocr_text": null,
-    "pid": 1227596,
-    "screenshot_path": null,
-    "tab_count": 1,
-    "tabs": [
-      {
-        "content": null,
-        "pane_id": null,
-        "source": null,
-        "title": ""
-      }
-    ],
-    "title": "",
-    "tmux_session": null,
-    "window_id": "850",
-    "workspace": ""
-  },
-  {
-    "aggregated_text": "",
-    "capture_method": null,
-    "capture_status": "unavailable",
-    "effectively_empty": true,
-    "emulator": "kitty",
-    "ocr_text": null,
-    "pid": 1228451,
-    "screenshot_path": null,
-    "tab_count": 1,
-    "tabs": [
-      {
-        "content": null,
-        "pane_id": null,
-        "source": null,
-        "title": ""
-      }
-    ],
-    "title": "",
-    "tmux_session": null,
-    "window_id": "850",
-    "workspace": ""
-  },
-  {
-    "aggregated_text": "",
-    "capture_method": null,
-    "capture_status": "unavailable",
-    "effectively_empty": true,
-    "emulator": "konsole",
-    "ocr_text": null,
-    "pid": 1229300,
     "screenshot_path": null,
     "tab_count": 1,
     "tabs": [
