@@ -23,6 +23,7 @@ def test_help_exits_successfully() -> None:
     assert result.returncode == 0
     assert "ensure-tmux" in result.stdout
     assert "close-empty" in result.stdout
+    assert "record-fixture" in result.stdout
 
 
 def test_plan_outputs_json() -> None:

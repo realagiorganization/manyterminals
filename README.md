@@ -25,10 +25,13 @@ python3 -m venv .venv-test
 python -m pip install -r requirements-test.txt
 pytest -q
 bash scripts/run-tests-in-docker.sh
+python3 scripts/manyterminals.py record-fixture tests/fixtures/local-snapshot.json
 python3 scripts/manyterminals.py inspect --fixtures tests/fixtures/inspection.json
 python3 scripts/manyterminals.py close-empty --dry-run --fixtures tests/fixtures/inspection.json
 python3 scripts/manyterminals.py ensure-tmux --dry-run --state-file state/tmux-sessions.md
 ```
+
+`record-fixture` writes the same JSON shape consumed by `inspect --fixtures`, which makes it suitable for capturing new regression cases from a live desktop before checking them into `tests/fixtures/`.
 
 ## Runtime Coverage
 

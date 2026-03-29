@@ -129,6 +129,43 @@ def test_inspect_command_uses_fixture_and_writes_output(tmp_path, capsys) -> Non
     assert output_path.exists()
 
 
+def test_record_fixture_command_writes_live_snapshots(monkeypatch, tmp_path, capsys) -> None:
+    output_path = tmp_path / "generated.json"
+    snapshots = [
+        TerminalSnapshot(
+            emulator="ghostty",
+            pid=101,
+            title="Scratch",
+            window_id="0x1",
+            tabs=[TabSnapshot(content="$ ", title="shell", source="fixture")],
+            capture_method="fixture",
+            capture_status="ok",
+        )
+    ]
+    monkeypatch.setattr(commands_module, "build_snapshots", lambda: snapshots)
+
+    args = argparse.Namespace(output=str(output_path), force=False)
+    result = commands_module.record_fixture_command(args)
+    captured = capsys.readouterr()
+
+    assert result == 0
+    assert "Recorded 1 terminal snapshots" in captured.out
+    payload = commands_module.json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload == commands_module.snapshots_payload(snapshots)
+
+
+def test_record_fixture_command_requires_force_to_overwrite(tmp_path, capsys) -> None:
+    output_path = tmp_path / "generated.json"
+    output_path.write_text("[]\n", encoding="utf-8")
+
+    args = argparse.Namespace(output=str(output_path), force=False)
+    result = commands_module.record_fixture_command(args)
+    captured = capsys.readouterr()
+
+    assert result == 1
+    assert "Use --force to overwrite it." in captured.err
+
+
 def test_ensure_tmux_dry_run_assigns_empty_terminals(monkeypatch, tmp_path, capsys) -> None:
     state_file = tmp_path / "tmux-sessions.md"
     state_file.write_text(

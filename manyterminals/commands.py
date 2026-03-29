@@ -37,8 +37,7 @@ from .tmux_ops import (
 )
 
 
-def inspect_command(args: argparse.Namespace) -> int:
-    snapshots = load_snapshot_fixture(Path(args.fixtures)) if args.fixtures else build_snapshots()
+def snapshots_payload(snapshots: list[TerminalSnapshot]) -> list[dict[str, object]]:
     payload = []
     for snapshot in snapshots:
         item = asdict(snapshot)
@@ -46,6 +45,12 @@ def inspect_command(args: argparse.Namespace) -> int:
         item["tab_count"] = snapshot.tab_count
         item["effectively_empty"] = is_effectively_empty(snapshot.aggregated_text)
         payload.append(item)
+    return payload
+
+
+def inspect_command(args: argparse.Namespace) -> int:
+    snapshots = load_snapshot_fixture(Path(args.fixtures)) if args.fixtures else build_snapshots()
+    payload = snapshots_payload(snapshots)
     rendered = json.dumps(payload, indent=2, sort_keys=True)
     if args.output:
         Path(args.output).write_text(rendered + "\n", encoding="utf-8")
@@ -61,6 +66,19 @@ def inspect_command(args: argparse.Namespace) -> int:
         preview = item["aggregated_text"].strip().splitlines()
         if preview:
             print(f"  {preview[0][:160]}")
+    return 0
+
+
+def record_fixture_command(args: argparse.Namespace) -> int:
+    output_path = Path(args.output)
+    if output_path.exists() and not args.force:
+        print(f"{output_path} already exists. Use --force to overwrite it.", file=sys.stderr)
+        return 1
+    snapshots = build_snapshots()
+    payload = snapshots_payload(snapshots)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(f"Recorded {len(payload)} terminal snapshots to {output_path}")
     return 0
 
 
@@ -176,6 +194,14 @@ def build_parser() -> argparse.ArgumentParser:
     inspect_parser.add_argument("--fixtures", help="Load snapshots from a JSON fixture instead of live discovery.")
     inspect_parser.set_defaults(func=inspect_command)
 
+    record_parser = subparsers.add_parser(
+        "record-fixture",
+        help="Record a live inspection snapshot into a JSON fixture file.",
+    )
+    record_parser.add_argument("output", help="Fixture file to write.")
+    record_parser.add_argument("--force", action="store_true", help="Overwrite an existing fixture file.")
+    record_parser.set_defaults(func=record_fixture_command)
+
     plan_parser = subparsers.add_parser("plan", help="Show tmux assignment plan from Markdown.")
     plan_parser.add_argument("--state-file", default="state/tmux-sessions.md", help="Markdown plan file.")
     plan_parser.set_defaults(func=plan_command)
@@ -235,8 +261,10 @@ __all__ = [
     "process_commands",
     "process_parents",
     "publish_command",
+    "record_fixture_command",
     "remap_controlled_tabs",
     "run",
+    "snapshots_payload",
     "run_tmux",
     "select_close_candidates",
     "strip_ansi",
