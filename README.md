@@ -25,6 +25,7 @@ python3 -m venv .venv-test
 python -m pip install -r requirements-test.txt
 pytest -q
 bash scripts/run-tests-in-docker.sh
+python3 scripts/assert_close_empty_fixture.py tests/fixtures/live-wayland-unavailable.json tests/fixtures/live-wayland-process-tree.json
 python3 scripts/manyterminals.py record-fixture tests/fixtures/local-snapshot.json
 python3 scripts/manyterminals.py inspect --fixtures tests/fixtures/inspection.json
 python3 scripts/manyterminals.py close-empty --dry-run --fixtures tests/fixtures/inspection.json
@@ -50,9 +51,10 @@ Known remaining limitation: the new process-tree backend infers tab-like branche
 ## Test Coverage
 
 - `tests/test_bdd.py` plus `tests/features/close_empty.feature`: BDD coverage for the Wayland close-empty fallback using the live regression fixture
+- `scripts/assert_close_empty_fixture.py`: explicit fixture-matrix assertion reused by CI and local verification
 - `tests/test_manyterminals.py`: unit coverage for selector, process-tree, X11 window-close fallbacks (`wmctrl`, `xdotool`), and close fallback logic
 - `tests/test_tmux_integration.py`: tmux session integration coverage
-- `docker/test.Dockerfile` plus `scripts/run-tests-in-docker.sh`: fully isolated test runner with its own Python and tmux toolchain
+- `docker/test.Dockerfile` plus `scripts/run-tests-in-docker.sh`: fully isolated test runner with its own Python and tmux toolchain, with a local rootfs fallback when registry pulls stall
 
 ## GitHub Actions
 
@@ -60,6 +62,7 @@ The CI workflow does three things on every push and pull request:
 
 - runs the pytest suite
 - builds the isolated test container and runs the suite inside it
+- asserts the close-empty fixture matrix directly from the tracked regression fixtures
 - renders the terminal UI demo from `demos/ui-demo.tape` and uploads the GIF as a workflow artifact
 
 A separate Pages workflow publishes `docs/ui-demo.gif` so the demo can be linked without relying only on the checked-in asset.

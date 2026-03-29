@@ -25,6 +25,9 @@ jobs:
       - name: Run tests
         run: pytest -q
 
+      - name: Assert close-empty fixture matrix
+        run: python scripts/assert_close_empty_fixture.py tests/fixtures/live-wayland-unavailable.json tests/fixtures/live-wayland-process-tree.json
+
   docker-test:
     runs-on: ubuntu-latest
     steps:
@@ -35,6 +38,9 @@ jobs:
 
       - name: Run tests in isolated container
         run: docker run --rm manyterminals:test
+
+      - name: Assert close-empty fixture matrix in isolated container
+        run: docker run --rm manyterminals:test python scripts/assert_close_empty_fixture.py tests/fixtures/live-wayland-unavailable.json tests/fixtures/live-wayland-process-tree.json
 
   ui-demo:
     runs-on: ubuntu-latest

@@ -11,6 +11,12 @@ from manyterminals import system as system_module
 from manyterminals.models import TabSnapshot, TerminalSnapshot
 
 
+def _load_process_tree_fixture() -> dict[str, object]:
+    return commands_module.json.loads(
+        (ROOT / "tests" / "fixtures" / "live-wayland-process-tree.json").read_text(encoding="utf-8")
+    )
+
+
 def test_load_plan_parses_markdown_table() -> None:
     rows = commands_module.load_plan(ROOT / "state" / "tmux-sessions.md")
     assert rows[0]["session"] == "ops"
@@ -422,39 +428,15 @@ def test_close_empty_dry_run_uses_fixture(capsys) -> None:
 def test_select_close_candidates_live_wayland_fixture_uses_process_fallback(monkeypatch) -> None:
     payload = (ROOT / "tests" / "fixtures" / "live-wayland-unavailable.json").read_text(encoding="utf-8")
     snapshots = [TerminalSnapshot.from_dict(item) for item in commands_module.json.loads(payload)]
-
-    parents = {
-        2073: 1,
-        58097: 2073,
-        59155: 58097,
-        348869: 1,
-        348889: 348869,
-        350889: 348869,
-        944645: 1,
-        945427: 944645,
-        955961: 1,
-        958316: 955961,
-        1067483: 1,
-        1067497: 1067483,
-        1220861: 1067497,
-    }
-    commands = {
-        58097: "zsh",
-        59155: "node-MainThread",
-        348889: "zsh",
-        350889: "zsh",
-        945427: "zsh",
-        958316: "zsh",
-        1067497: "zsh",
-        1220861: "node-MainThread",
-    }
+    process_tree = _load_process_tree_fixture()
+    parents = {int(pid): int(ppid) for pid, ppid in process_tree["parents"].items()}
+    commands = {int(pid): str(command) for pid, command in process_tree["commands"].items()}
 
     monkeypatch.setattr(commands_module, "process_parents", lambda: parents)
     monkeypatch.setattr(commands_module, "process_commands", lambda: commands)
 
     candidates = commands_module.select_close_candidates(snapshots)
 
-    assert [snapshot.pid for snapshot in candidates] == [
-        944645,
-        955961,
+    assert [(snapshot.emulator, snapshot.pid) for snapshot in candidates] == [
+        tuple(row) for row in process_tree["expected_close_candidates"]
     ]

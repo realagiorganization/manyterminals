@@ -21,6 +21,12 @@ def _pairs(text: str) -> list[tuple[str, int]]:
     return rows
 
 
+def _load_process_tree_fixture() -> dict[str, object]:
+    return commands_module.json.loads(
+        (ROOT / "tests" / "fixtures" / "live-wayland-process-tree.json").read_text(encoding="utf-8")
+    )
+
+
 @given("the live Wayland fallback fixture", target_fixture="wayland_fixture")
 def live_wayland_fixture() -> list[TerminalSnapshot]:
     payload = (ROOT / "tests" / "fixtures" / "live-wayland-unavailable.json").read_text(encoding="utf-8")
@@ -29,31 +35,9 @@ def live_wayland_fixture() -> list[TerminalSnapshot]:
 
 @when("I select close-empty candidates from that fixture", target_fixture="selected_candidates")
 def select_candidates(monkeypatch, wayland_fixture: list[TerminalSnapshot]) -> list[TerminalSnapshot]:
-    parents = {
-        2073: 1,
-        58097: 2073,
-        59155: 58097,
-        348869: 1,
-        348889: 348869,
-        350889: 348869,
-        944645: 1,
-        945427: 944645,
-        955961: 1,
-        958316: 955961,
-        1067483: 1,
-        1067497: 1067483,
-        1220861: 1067497,
-    }
-    commands = {
-        58097: "zsh",
-        59155: "node-MainThread",
-        348889: "zsh",
-        350889: "zsh",
-        945427: "zsh",
-        958316: "zsh",
-        1067497: "zsh",
-        1220861: "node-MainThread",
-    }
+    process_tree = _load_process_tree_fixture()
+    parents = {int(pid): int(ppid) for pid, ppid in process_tree["parents"].items()}
+    commands = {int(pid): str(command) for pid, command in process_tree["commands"].items()}
     monkeypatch.setattr(commands_module, "process_parents", lambda: parents)
     monkeypatch.setattr(commands_module, "process_commands", lambda: commands)
     return commands_module.select_close_candidates(wayland_fixture)
