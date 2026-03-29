@@ -65,12 +65,14 @@ A separate Pages workflow publishes `docs/ui-demo.gif` so the demo can be linked
 
 ## Releases
 
-The repository ships under the MIT license and uses lightweight semantic version tags. `v0.1.0` is the first tagged release cut after the green CI/demo pipeline landed.
+The repository ships under the MIT license and uses lightweight semantic version tags. `v0.1.0` is the first tagged release cut after the green CI/demo pipeline landed. Future tags are expected to have a matching section in `CHANGELOG.md`; the release workflow now extracts that section and publishes it as the GitHub release body.
 
 ## Repo Layout
 
 - `SKILL.md`: skill instructions for Codex
+- `CHANGELOG.md`: curated release history and tag notes
 - `scripts/manyterminals.py`: main CLI
+- `scripts/release_notes.py`: changelog section extractor used by the release workflow
 - `state/tmux-sessions.md`: Markdown plan for tmux sessions
 - `tests/`: unit and CLI coverage
 - `demos/ui-demo.tape`: recorded terminal UI scenario

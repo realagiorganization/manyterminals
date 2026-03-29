@@ -18,14 +18,21 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      - name: Build release notes from changelog
+        run: python3 scripts/release_notes.py "${GITHUB_REF_NAME}" --output dist/release-notes.md
+
       - name: Create release archive
         run: |
           mkdir -p dist
           tar -czf dist/manyterminals-${GITHUB_REF_NAME}.tar.gz \
-            AGENTS.md LICENSE README.md SKILL.md agents demos docs install.md readme.md scripts state tests
+            AGENTS.md CHANGELOG.md LICENSE README.md SKILL.md agents demos docs install.md readme.md scripts state tests
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
+          body_path: dist/release-notes.md
           files: dist/manyterminals-${{ github.ref_name }}.tar.gz
-          generate_release_notes: true
