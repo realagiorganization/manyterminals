@@ -32,6 +32,38 @@ def test_remap_controlled_tabs_maps_child_pid_to_terminal_pid() -> None:
     assert remapped[100][0].title == "demo"
 
 
+def test_process_tree_tabs_summarize_supported_emulators() -> None:
+    children = {
+        100: [110, 120],
+        110: [111],
+        120: [],
+        111: [],
+    }
+    commands = {
+        110: "zsh",
+        111: "python",
+        120: "zsh",
+    }
+    args_by_pid = {
+        110: "zsh",
+        111: "python -m http.server",
+        120: "zsh",
+    }
+
+    tabs = capture_module.process_tree_tabs(100, "ghostty", children, commands, args_by_pid)
+
+    assert [(tab.title, tab.content, tab.source, tab.pane_id) for tab in tabs] == [
+        ("python", "python -m http.server", "process-tree", "110"),
+        ("zsh", "$ ", "process-tree", "120"),
+    ]
+
+
+def test_process_tree_tabs_skip_unsupported_emulators() -> None:
+    tabs = capture_module.process_tree_tabs(100, "alacritty", {100: [110]}, {110: "zsh"}, {110: "zsh"})
+
+    assert tabs == []
+
+
 def test_iter_terminal_processes_dedupes_nested_terminal_wrappers(monkeypatch) -> None:
     responses = {
         ("ps", "-eo", "pid=,comm="): subprocess.CompletedProcess(
@@ -207,6 +239,29 @@ def test_inspect_command_uses_fixture_and_writes_output(tmp_path, capsys) -> Non
     assert "kitty pid=4242 tabs=2 capture=tmux status=ok empty=False" in captured
     assert "ghostty pid=5252 tabs=1 capture=screenshot+ocr status=ok empty=True" in captured
     assert output_path.exists()
+
+
+def test_build_snapshots_uses_process_tree_capture_before_screenshot(monkeypatch) -> None:
+    monkeypatch.setattr(capture_module, "iter_terminal_processes", lambda: [(700, "konsole")])
+    monkeypatch.setattr(capture_module, "process_parents", lambda: {700: 1, 710: 700, 711: 710, 720: 700})
+    monkeypatch.setattr(capture_module, "process_commands", lambda: {710: "zsh", 711: "npm", 720: "zsh"})
+    monkeypatch.setattr(capture_module, "process_args", lambda: {710: "zsh", 711: "npm run dev", 720: "zsh"})
+    monkeypatch.setattr(capture_module, "x11_windows", lambda: {700: {"window_id": "0x77", "workspace": "2", "title": "Konsole"}})
+    monkeypatch.setattr(capture_module, "kitty_tabs", lambda: {})
+    monkeypatch.setattr(capture_module, "wezterm_tabs", lambda: {})
+    monkeypatch.setattr(capture_module, "detect_tmux_for_pid", lambda pid: None)
+    monkeypatch.setattr(capture_module, "screenshot_window", lambda window_id: (_ for _ in ()).throw(AssertionError("screenshot should not run")))
+
+    snapshots = capture_module.build_snapshots()
+
+    assert len(snapshots) == 1
+    snapshot = snapshots[0]
+    assert snapshot.capture_method == "process-tree"
+    assert snapshot.capture_status == "ok"
+    assert [(tab.title, tab.content) for tab in snapshot.tabs] == [
+        ("npm", "npm run dev"),
+        ("zsh", "$ "),
+    ]
 
 
 def test_record_fixture_command_writes_live_snapshots(monkeypatch, tmp_path, capsys) -> None:

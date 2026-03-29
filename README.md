@@ -40,11 +40,12 @@ The current capture and control matrix is:
 - `tmux`: session/window capture through `tmux capture-pane`
 - `kitty`: tab text through `kitty @ ls` and `kitty @ get-text`
 - `wezterm`: pane text through `wezterm cli list` and `wezterm cli get-text`
+- `ghostty`, `konsole`, `qterminal`, `qmlkonsole`, `yakuake`: process-tree pseudo-tabs derived from shell and child command branches
 - X11 windows: `wmctrl` first, then `xdotool`
 - Wayland or unsupported emulators: screenshot and OCR when available, otherwise descendant-process fallback for `close-empty`
-- KDE-style wrappers such as `qmlkonsole` and `yakuake`: descendant PID search and process-tree fallback
+- KDE-style wrappers such as `qmlkonsole` and `yakuake`: descendant PID search plus process-tree tab inference
 
-Known remaining limitation: tab enumeration for emulators like `ghostty`, `konsole`, and `qterminal` is still best-effort unless they expose text through tmux, OCR, or a child process tree that can be classified safely.
+Known remaining limitation: the new process-tree backend infers tab-like branches from child shells and commands, but it still cannot recover exact scrollback or hidden tabs the way native APIs do.
 
 ## Test Coverage
 

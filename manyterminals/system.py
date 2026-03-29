@@ -87,6 +87,20 @@ def process_commands() -> dict[int, str]:
     return mapping
 
 
+def process_args() -> dict[int, str]:
+    ps = run(["ps", "-eo", "pid=,args="], check=True)
+    mapping: dict[int, str] = {}
+    for line in ps.stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split(maxsplit=1)
+        pid_str = parts[0]
+        args = parts[1] if len(parts) > 1 else ""
+        mapping[int(pid_str)] = args
+    return mapping
+
+
 def is_descendant(pid: int, ancestor: int, parents: dict[int, int]) -> bool:
     current = pid
     seen: set[int] = set()

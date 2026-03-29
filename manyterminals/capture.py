@@ -8,10 +8,13 @@ from pathlib import Path
 
 from .models import TabSnapshot, TerminalSnapshot
 from .system import (
+    SHELL_COMMANDS,
+    TERMINAL_HELPERS,
     descendant_processes,
     descendants_by_pid,
     is_descendant,
     iter_terminal_processes,
+    process_args,
     process_commands,
     process_parents,
     run,
@@ -20,6 +23,8 @@ from .system import (
     x11_windows,
 )
 from .tmux_ops import detect_tmux_for_pid, discover_tmux_session_from_env, tmux_capture
+
+PROCESS_TREE_EMULATORS = {"ghostty", "konsole", "qterminal", "qmlkonsole", "yakuake"}
 
 
 def kitty_tabs() -> dict[int, list[TabSnapshot]]:
@@ -134,9 +139,69 @@ def ocr_image(path: str) -> str | None:
         return None
 
 
+def process_tree_tabs(
+    pid: int,
+    emulator: str,
+    children: dict[int, list[int]],
+    commands: dict[int, str],
+    args_by_pid: dict[int, str],
+) -> list[TabSnapshot]:
+    if emulator not in PROCESS_TREE_EMULATORS:
+        return []
+
+    roots: list[int] = []
+    queue = list(children.get(pid, []))
+    while queue:
+        current = queue.pop(0)
+        command = commands.get(current, "")
+        if command in TERMINAL_HELPERS:
+            queue = children.get(current, []) + queue
+            continue
+        roots.append(current)
+
+    tabs: list[TabSnapshot] = []
+    for root_pid in roots:
+        branch = [root_pid] + descendant_processes(root_pid, children)
+        active_commands: list[str] = []
+        shell_name = ""
+        for branch_pid in branch:
+            command = commands.get(branch_pid, "")
+            if not command or command in TERMINAL_HELPERS:
+                continue
+            argv = args_by_pid.get(branch_pid, "").strip() or command
+            if command in SHELL_COMMANDS:
+                if not shell_name:
+                    shell_name = Path(argv.split()[0]).name
+                continue
+            if argv not in active_commands:
+                active_commands.append(argv)
+        if active_commands:
+            tabs.append(
+                TabSnapshot(
+                    title=Path(active_commands[-1].split()[0]).name,
+                    content="\n".join(active_commands),
+                    source="process-tree",
+                    pane_id=str(root_pid),
+                )
+            )
+            continue
+        tabs.append(
+            TabSnapshot(
+                title=shell_name or emulator,
+                content="$ ",
+                source="process-tree",
+                pane_id=str(root_pid),
+            )
+        )
+    return tabs
+
+
 def build_snapshots() -> list[TerminalSnapshot]:
     terminals = iter_terminal_processes()
     parents = process_parents()
+    children = descendants_by_pid(parents)
+    commands = process_commands()
+    args_by_pid = process_args()
     windows = x11_windows()
     kitty = remap_controlled_tabs(kitty_tabs(), terminals, parents)
     wezterm = remap_controlled_tabs(wezterm_tabs(), terminals, parents)
@@ -170,6 +235,13 @@ def build_snapshots() -> list[TerminalSnapshot]:
         if pid in wezterm:
             snapshot.tabs = wezterm[pid]
             snapshot.capture_method = "wezterm"
+            snapshot.capture_status = "ok"
+            snapshots.append(snapshot)
+            continue
+        process_tabs = process_tree_tabs(pid, emulator, children, commands, args_by_pid)
+        if process_tabs:
+            snapshot.tabs = process_tabs
+            snapshot.capture_method = "process-tree"
             snapshot.capture_status = "ok"
             snapshots.append(snapshot)
             continue
