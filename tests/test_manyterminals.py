@@ -114,6 +114,86 @@ def test_terminate_process_tree_escalates_to_sigkill(monkeypatch) -> None:
     ]
 
 
+def test_close_snapshot_prefers_wmctrl_on_x11(monkeypatch) -> None:
+    snapshot = TerminalSnapshot(
+        emulator="ghostty",
+        pid=101,
+        title="Ghostty",
+        window_id="0x1",
+        tabs=[TabSnapshot(content="$ ", title="shell", source="fixture")],
+        capture_method="fixture",
+        capture_status="ok",
+    )
+    commands: list[tuple[str, ...]] = []
+
+    def fake_run(command, check=False):
+        commands.append(tuple(command))
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(system_module, "which", lambda name: f"/usr/bin/{name}" if name == "wmctrl" else None)
+    monkeypatch.setattr(system_module, "run", fake_run)
+    monkeypatch.setattr(system_module, "terminate_process_tree", lambda pid: False)
+
+    assert system_module.close_snapshot(snapshot) is True
+    assert commands == [("wmctrl", "-ic", "0x1")]
+
+
+def test_close_snapshot_falls_back_to_xdotool_after_wmctrl_failure(monkeypatch) -> None:
+    snapshot = TerminalSnapshot(
+        emulator="kitty",
+        pid=202,
+        title="Kitty",
+        window_id="0x2",
+        tabs=[TabSnapshot(content="$ ", title="shell", source="fixture")],
+        capture_method="fixture",
+        capture_status="ok",
+    )
+    commands: list[tuple[str, ...]] = []
+
+    def fake_run(command, check=False):
+        commands.append(tuple(command))
+        if tuple(command) == ("wmctrl", "-ic", "0x2"):
+            return subprocess.CompletedProcess(command, 1, "", "failed")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(system_module, "which", lambda name: f"/usr/bin/{name}" if name in {"wmctrl", "xdotool"} else None)
+    monkeypatch.setattr(system_module, "run", fake_run)
+    monkeypatch.setattr(system_module, "terminate_process_tree", lambda pid: False)
+
+    assert system_module.close_snapshot(snapshot) is True
+    assert commands == [
+        ("wmctrl", "-ic", "0x2"),
+        ("xdotool", "windowclose", "0x2"),
+    ]
+
+
+def test_close_snapshot_falls_back_to_process_termination_when_window_close_unavailable(monkeypatch) -> None:
+    snapshot = TerminalSnapshot(
+        emulator="qmlkonsole",
+        pid=303,
+        title="Scratch",
+        window_id="850",
+        tabs=[TabSnapshot(content="", title="shell", source="fixture")],
+        capture_method="fixture",
+        capture_status="ok",
+    )
+    commands: list[tuple[str, ...]] = []
+
+    def fake_run(command, check=False):
+        commands.append(tuple(command))
+        return subprocess.CompletedProcess(command, 1, "", "failed")
+
+    monkeypatch.setattr(system_module, "which", lambda name: f"/usr/bin/{name}" if name in {"wmctrl", "xdotool"} else None)
+    monkeypatch.setattr(system_module, "run", fake_run)
+    monkeypatch.setattr(system_module, "terminate_process_tree", lambda pid: pid == 303)
+
+    assert system_module.close_snapshot(snapshot) is True
+    assert commands == [
+        ("wmctrl", "-ic", "850"),
+        ("xdotool", "windowclose", "850"),
+    ]
+
+
 def test_inspect_command_uses_fixture_and_writes_output(tmp_path, capsys) -> None:
     output_path = tmp_path / "inspection.json"
     args = argparse.Namespace(

@@ -49,7 +49,7 @@ Known remaining limitation: tab enumeration for emulators like `ghostty`, `konso
 ## Test Coverage
 
 - `tests/test_bdd.py` plus `tests/features/close_empty.feature`: BDD coverage for the Wayland close-empty fallback using the live regression fixture
-- `tests/test_manyterminals.py`: unit coverage for selector, process-tree, and close fallback logic
+- `tests/test_manyterminals.py`: unit coverage for selector, process-tree, X11 window-close fallbacks (`wmctrl`, `xdotool`), and close fallback logic
 - `tests/test_tmux_integration.py`: tmux session integration coverage
 - `docker/test.Dockerfile` plus `scripts/run-tests-in-docker.sh`: fully isolated test runner with its own Python and tmux toolchain
 
